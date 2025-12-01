@@ -1,18 +1,18 @@
-import gmpy2
+import gmpyx
 import concurrent.futures
 import time
 
-# Test parallel computation of gmpy2.powmod_base_list()
+# Test parallel computation of gmpyx.powmod_base_list()
 
 # The demo code is not (yet) optimal since it doesn't take advantage of
 # read-only access to data list that is shared across all threads.
 
 # Create a set of test values.
 def create_tests(num_items = 100000, bits = 1000):
-    rand = gmpy2.random_state(42)
-    e = gmpy2.mpz_urandomb(rand, bits)
-    m = gmpy2.mpz_urandomb(rand, bits)
-    big_list = [gmpy2.mpz_urandomb(rand, bits) for _ in range(num_items)]
+    rand = gmpyx.random_state(42)
+    e = gmpyx.mpz_urandomb(rand, bits)
+    m = gmpyx.mpz_urandomb(rand, bits)
+    big_list = [gmpyx.mpz_urandomb(rand, bits) for _ in range(num_items)]
     return big_list, e, m
 
 # Partition big_list into a new list containing a number of sub-list with
@@ -29,25 +29,25 @@ def partition_list(big_list, size):
 # This is the non-threaded, baseline function that does not
 # the GIL. It is intended to use the original, non-partitioned list.
 def powmod_list_gil(lst, e, m):
-    gmpy2.get_context().allow_release_gil = False
+    gmpyx.get_context().allow_release_gil = False
     result = []
     start = time.time()
-    result = [gmpy2.powmod(i, e, m) for i in lst]
+    result = [gmpyx.powmod(i, e, m) for i in lst]
     return time.time() - start, result
 
 # This is the threaded, baseline function that does release the GIL.
 def powmod_list_nogil(index, lst, e, m):
-    gmpy2.get_context().allow_release_gil = True
+    gmpyx.get_context().allow_release_gil = True
     result = []
     start = time.time()
-    result = [gmpy2.powmod(i, e, m) for i in lst]
+    result = [gmpyx.powmod(i, e, m) for i in lst]
     return time.time() - start, index, result
 
 # This function uses the vector version powmod_base_list and releases the GIL.
 def powmod_vector_nogil(index, vector, e, m):
-    gmpy2.get_context().allow_release_gil = True
+    gmpyx.get_context().allow_release_gil = True
     start = time.time()
-    result = gmpy2.powmod_base_list(vector, e, m)
+    result = gmpyx.powmod_base_list(vector, e, m)
     return time.time() - start, index, result
 
 # Run threaded versions.
