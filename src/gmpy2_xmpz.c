@@ -6,7 +6,7 @@
  *                                                                         *
  * Copyright 2000 - 2009 Alex Martelli                                     *
  *                                                                         *
- * Copyright 2008 - 2024 Case Van Horsen                                   *
+ * Copyright 2008 - 2025 Case Van Horsen                                   *
  *                                                                         *
  * This file is part of GMPY2.                                             *
  *                                                                         *
@@ -84,7 +84,7 @@ static PyGetSetDef GMPy_XMPZ_getseters[] =
         "the denominator of a rational number in lowest terms", NULL },
     { "real", (getter)GMPy_XMPZ_Attrib_GetReal, NULL,
         "the real part of a complex number", NULL },
-    { "denominator", (getter)GMPy_XMPZ_Attrib_GetImag, NULL,
+    { "imag", (getter)GMPy_XMPZ_Attrib_GetImag, NULL,
         "the imaginary part of a complex number", NULL },
     {NULL}
 };
@@ -96,6 +96,7 @@ static PyMethodDef GMPy_XMPZ_methods [] =
     { "bit_clear", GMPy_MPZ_bit_clear_method, METH_O, doc_bit_clear_method },
     { "bit_flip", GMPy_MPZ_bit_flip_method, METH_O, doc_bit_flip_method },
     { "bit_length", GMPy_MPZ_bit_length_method, METH_NOARGS, doc_bit_length_method },
+    { "bit_count", GMPy_MPZ_bit_count_method, METH_NOARGS, doc_bit_count_method },
     { "bit_scan0", (PyCFunction)GMPy_MPZ_bit_scan0_method, METH_FASTCALL, doc_bit_scan0_method },
     { "bit_scan1", (PyCFunction)GMPy_MPZ_bit_scan1_method, METH_FASTCALL, doc_bit_scan1_method },
     { "bit_set", GMPy_MPZ_bit_set_method, METH_O, doc_bit_set_method },

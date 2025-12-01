@@ -6,7 +6,7 @@
  *                                                                         *
  * Copyright 2000 - 2009 Alex Martelli                                     *
  *                                                                         *
- * Copyright 2008 - 2024 Case Van Horsen                                   *
+ * Copyright 2008 - 2025 Case Van Horsen                                   *
  *                                                                         *
  * This file is part of GMPY2.                                             *
  *                                                                         *
@@ -83,13 +83,13 @@ GMPy_CTXT_New(void)
         result->token = NULL;
     }
     return (PyObject*)result;
-};
+}
 
 static void
 GMPy_CTXT_Dealloc(CTXT_Object *self)
 {
     PyObject_Free(self);
-};
+}
 
 /* Begin support for context vars. */
 
@@ -184,7 +184,9 @@ GMPy_CTXT_Enter(PyObject *self, PyObject *args)
 static PyObject *
 GMPy_CTXT_Exit(PyObject *self, PyObject *args)
 {
-    int res = PyContextVar_Reset(current_context_var, ((CTXT_Object*)self)->token);
+    CTXT_Object *ctx = (CTXT_Object*)self;
+    int res = (int)PyContextVar_Reset(current_context_var, ctx->token);  // XXX: pypy/pypy#5252
+    Py_DECREF(ctx->token);
     if (res == -1) {
         SYSTEM_ERROR("Unexpected failure in restoring context.");
         return NULL;
@@ -195,9 +197,13 @@ GMPy_CTXT_Exit(PyObject *self, PyObject *args)
 
 PyDoc_STRVAR(GMPy_doc_context_ieee,
 "ieee(size, /, subnormalize=True) -> context\n\n"
-"Return a new context corresponding to a standard IEEE floating point\n"
+"Return a new context corresponding to a standard IEEE floating-point\n"
 "format. The supported sizes are 16, 32, 64, 128, and multiples of\n"
-"32 greater than 128.");
+"32 greater than 128.\n\n"
+"Note that emax/emin attributes of the IEEE contexts have\n"
+"different meaning wrt the IEEE 754 standard: emax = e + 1 and\n"
+"emin = 4 - emax - precision, where e - maximum exponent\n"
+"in IEEE terms.");
 
 static PyObject *
 GMPy_CTXT_ieee(PyObject *self, PyObject *args, PyObject *kwargs)
@@ -536,7 +542,7 @@ PyDoc_STRVAR(GMPy_doc_local_context,
 "local_context(context, /, **kwargs) -> context\n\n"
 "Return a new context for controlling gmpy2 arithmetic, based either\n"
 "on the current context or on a ctx value.  Context options additionally\n"
-"can be overriden by keyword arguments.");
+"can be overridden by keyword arguments.");
 
 static PyObject *
 GMPy_CTXT_Local(PyObject *self, PyObject *args, PyObject *kwargs)
@@ -591,7 +597,7 @@ PyDoc_STRVAR(GMPy_doc_context,
 "context(ctx, /, **kwargs)\n\n"
 "Return a new context for controlling gmpy2 arithmetic, based either\n"
 "on the default context or on a given by ctx value.  Context options\n"
-"additionally can be overriden by keyword arguments.");
+"additionally can be overridden by keyword arguments.");
 
 static PyObject *
 GMPy_CTXT_Context(PyTypeObject *type, PyObject *args, PyObject *kwargs)
@@ -652,7 +658,7 @@ static PyObject * \
 GMPy_CTXT_Get_##NAME(CTXT_Object *self, void *closure) \
 { \
     return PyBool_FromLong(self->ctx.NAME); \
-}; \
+} \
 static int \
 GMPy_CTXT_Set_##NAME(CTXT_Object *self, PyObject *value, void *closure) \
 { \
@@ -673,7 +679,7 @@ static PyObject * \
 GMPy_CTXT_Get_##NAME(CTXT_Object *self, void *closure) \
 { \
     return PyBool_FromLong(self->ctx.traps & TRAP); \
-}; \
+} \
 static int \
 GMPy_CTXT_Set_##NAME(CTXT_Object *self, PyObject *value, void *closure) \
 { \
@@ -688,28 +694,28 @@ GMPy_CTXT_Set_##NAME(CTXT_Object *self, PyObject *value, void *closure) \
     return 0; \
 }
 
-GETSET_BOOLEAN(subnormalize);
-GETSET_BOOLEAN(underflow);
-GETSET_BOOLEAN(overflow);
-GETSET_BOOLEAN(inexact);
-GETSET_BOOLEAN(invalid);
-GETSET_BOOLEAN(erange);
-GETSET_BOOLEAN(divzero);
-GETSET_BOOLEAN_BIT(trap_underflow, TRAP_UNDERFLOW);
-GETSET_BOOLEAN_BIT(trap_overflow, TRAP_OVERFLOW);
-GETSET_BOOLEAN_BIT(trap_inexact, TRAP_INEXACT);
-GETSET_BOOLEAN_BIT(trap_invalid, TRAP_INVALID);
-GETSET_BOOLEAN_BIT(trap_erange, TRAP_ERANGE);
-GETSET_BOOLEAN_BIT(trap_divzero, TRAP_DIVZERO);
+GETSET_BOOLEAN(subnormalize)
+GETSET_BOOLEAN(underflow)
+GETSET_BOOLEAN(overflow)
+GETSET_BOOLEAN(inexact)
+GETSET_BOOLEAN(invalid)
+GETSET_BOOLEAN(erange)
+GETSET_BOOLEAN(divzero)
+GETSET_BOOLEAN_BIT(trap_underflow, TRAP_UNDERFLOW)
+GETSET_BOOLEAN_BIT(trap_overflow, TRAP_OVERFLOW)
+GETSET_BOOLEAN_BIT(trap_inexact, TRAP_INEXACT)
+GETSET_BOOLEAN_BIT(trap_invalid, TRAP_INVALID)
+GETSET_BOOLEAN_BIT(trap_erange, TRAP_ERANGE)
+GETSET_BOOLEAN_BIT(trap_divzero, TRAP_DIVZERO)
 GETSET_BOOLEAN(allow_complex)
 GETSET_BOOLEAN(rational_division)
 GETSET_BOOLEAN(allow_release_gil)
 
 PyDoc_STRVAR(GMPy_doc_CTXT_subnormalize,
-"The usual IEEE-754 floating point representation supports gradual\n"
+"The usual IEEE-754 floating-point representation supports gradual\n"
 "underflow when the minimum exponent is reached.  The MFPR library\n"
 "does not enable gradual underflow by default but it can be enabled\n"
-"to precisely mimic the results of IEEE-754 floating point operations.");
+"to precisely mimic the results of IEEE-754 floating-point operations.");
 
 PyDoc_STRVAR(GMPy_doc_CTXT_trap_underflow,
 "If set to `False`, a result that is smaller than the smallest possible\n"

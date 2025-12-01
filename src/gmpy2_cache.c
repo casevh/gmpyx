@@ -6,7 +6,7 @@
  *                                                                         *
  * Copyright 2000 - 2009 Alex Martelli                                     *
  *                                                                         *
- * Copyright 2008 - 2024 Case Van Horsen                                   *
+ * Copyright 2008 - 2025 Case Van Horsen                                   *
  *                                                                         *
  * This file is part of GMPY2.                                             *
  *                                                                         *
@@ -69,7 +69,7 @@ GMPy_MPZ_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
     PyObject *out = NULL;
     int base = 0;
     Py_ssize_t argc;
-    static char *kwlist[] = {"s", "base", NULL };
+    static char *kwlist[] = {"", "base", NULL};
     CTXT_Object *context = NULL;
 
     if (type != &MPZ_Type) {
@@ -81,7 +81,7 @@ GMPy_MPZ_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
 
     argc = PyTuple_GET_SIZE(args);
 
-    if (argc == 0) {
+    if (argc == 0 && !keywds) {
         return (PyObject*)GMPy_MPZ_New(context);
     }
 
@@ -158,7 +158,7 @@ GMPy_MPZ_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
         return NULL;
     }
 
-    if ((base != 0) && ((base < 2)|| (base > 62))) {
+    if (base != 0 && (base < 2 || base > 62)) {
         VALUE_ERROR("base for mpz() must be 0 or in the interval [2, 62]");
         return NULL;
     }
@@ -181,7 +181,6 @@ GMPy_MPZ_Dealloc(MPZ_Object *self)
 {
    if (global.in_gmpympzcache < CACHE_SIZE &&
        self->z->_mp_alloc <= MAX_CACHE_MPZ_LIMBS) {
-        
         global.gmpympzcache[(global.in_gmpympzcache)++] = self;
     }
     else {
@@ -207,7 +206,7 @@ GMPy_XMPZ_New(CTXT_Object *context)
         if (result == NULL) {
             return NULL;
         }
-       mpz_init(result->z);
+        mpz_init(result->z);
     }
     return result;
 }
@@ -220,7 +219,7 @@ GMPy_XMPZ_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
     PyObject *temp = NULL;
     int base = 0;
     Py_ssize_t argc;
-    static char *kwlist[] = {"s", "base", NULL };
+    static char *kwlist[] = {"", "base", NULL};
     CTXT_Object *context = NULL;
 
     if (type != &XMPZ_Type) {
@@ -232,7 +231,7 @@ GMPy_XMPZ_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
 
     argc = PyTuple_GET_SIZE(args);
 
-    if (argc == 0) {
+    if (argc == 0 && !keywds) {
         return (PyObject*)GMPy_XMPZ_New(context);
     }
 
@@ -294,7 +293,7 @@ GMPy_XMPZ_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
         return NULL;
     }
 
-    if ((base != 0) && ((base < 2)|| (base > 62))) {
+    if (base != 0 && (base < 2 || base > 62)) {
         VALUE_ERROR("base for xmpz() must be 0 or in the interval [2, 62]");
         return NULL;
     }
@@ -317,7 +316,6 @@ GMPy_XMPZ_Dealloc(XMPZ_Object *self)
 {
    if (global.in_gmpyxmpzcache < CACHE_SIZE &&
        self->z->_mp_alloc <= MAX_CACHE_MPZ_LIMBS) {
-        
         global.gmpyxmpzcache[(global.in_gmpyxmpzcache)++] = self;
     }
     else {
@@ -356,7 +354,7 @@ GMPy_MPQ_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
     PyObject *n = NULL, *m = NULL;
     int base = 10;
     Py_ssize_t argc, keywdc = 0;
-    static char *kwlist[] = {"s", "base", NULL };
+    static char *kwlist[] = {"", "base", NULL};
     CTXT_Object *context = NULL;
 
     if (type != &MPQ_Type) {
@@ -389,7 +387,7 @@ GMPy_MPQ_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
     n = PyTuple_GetItem(args, 0);
 
     /* Handle the case where the first argument is a string. */
-    if (PyStrOrUnicode_Check(n)) {
+    if (PyStrOrUnicode_Check(n) || keywdc) {
         /* keyword base is legal */
         if (keywdc || argc > 1) {
             if (!(PyArg_ParseTupleAndKeywords(args, keywds, "O|i", kwlist, &n, &base))) {
@@ -397,7 +395,7 @@ GMPy_MPQ_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
             }
         }
 
-        if ((base != 0) && ((base < 2) || (base > 62))) {
+        if (base != 0 && (base < 2 || base > 62)) {
             VALUE_ERROR("base for mpq() must be 0 or in the interval [2, 62]");
             return NULL;
         }
@@ -477,14 +475,15 @@ GMPy_MPFR_New(mpfr_prec_t bits, CTXT_Object *context)
     if (global.in_gmpympfrcache) {
         result = global.gmpympfrcache[--(global.in_gmpympfrcache)];
         Py_INCREF((PyObject*)result);
+        mpfr_set_prec(result->f, bits);
     }
     else {
         result = PyObject_New(MPFR_Object, &MPFR_Type);
         if (result == NULL) {
             return NULL;
         }
+        mpfr_init2(result->f, bits);
     }
-    mpfr_init2(result->f, bits);
     result->hash_cache = -1;
     result->rc = 0;
     return result;
@@ -504,8 +503,8 @@ GMPy_MPFR_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
     /* Assumes mpfr_prec_t is the same as a long. */
     mpfr_prec_t prec = 0;
 
-    static char *kwlist_s[] = {"s", "precision", "base", "context", NULL};
-    static char *kwlist_n[] = {"n", "precision", "context", NULL};
+    static char *kwlist_s[] = {"", "precision", "base", "context", NULL};
+    static char *kwlist_n[] = {"", "precision", "context", NULL};
 
     if (type != &MPFR_Type) {
         TYPE_ERROR("mpfr.__new__() requires mpfr type");
@@ -641,14 +640,21 @@ GMPy_MPC_New(mpfr_prec_t rprec, mpfr_prec_t iprec, CTXT_Object *context)
     if (global.in_gmpympccache) {
         result = global.gmpympccache[--(global.in_gmpympccache)];
         Py_INCREF((PyObject*)result);
+        if (rprec == iprec) {
+            mpc_set_prec(result->c, rprec);
+        }
+        else {
+            mpc_clear(result->c);
+            mpc_init3(result->c, rprec, iprec);
+        }
     }
     else {
         result = PyObject_New(MPC_Object, &MPC_Type);
         if (result == NULL) {
             return NULL;
         }
+        mpc_init3(result->c, rprec, iprec);
     }
-    mpc_init3(result->c, rprec, iprec);
     result->hash_cache = -1;
     result->rc = 0;
     return result;
@@ -667,9 +673,9 @@ GMPy_MPC_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
     /* Assumes mpfr_prec_t is the same as a long. */
     mpfr_prec_t rprec = 0, iprec = 0;
 
-    static char *kwlist_c[] = {"c", "precision", "context", NULL};
-    static char *kwlist_r[] = {"real", "imag", "precision", "context", NULL};
-    static char *kwlist_s[] = {"s", "precision", "base", "context", NULL};
+    static char *kwlist_c[] = {"", "precision", "context", NULL};
+    static char *kwlist_r[] = {"", "imag", "precision", "context", NULL};
+    static char *kwlist_s[] = {"", "precision", "base", "context", NULL};
 
     if (type != &MPC_Type) {
         TYPE_ERROR("mpc.__new__() requires mpc type");
@@ -769,7 +775,7 @@ GMPy_MPC_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
     if (IS_REAL(arg0)) {
         if (keywdc || argc > 1) {
             if (!(PyArg_ParseTupleAndKeywords(args, keywds, "O|OOO", kwlist_r,
-                                            &arg0, &arg1, &prec, &context)))
+                                              &arg0, &arg1, &prec, &context)))
                 return NULL;
         }
 
@@ -835,9 +841,9 @@ GMPy_MPC_NewInit(PyTypeObject *type, PyObject *args, PyObject *keywds)
 
     if (IS_COMPLEX_ONLY(arg0)) {
         if (keywdc || argc > 1) {
-            if (!(PyArg_ParseTupleAndKeywords(args, keywds, "O|O", kwlist_c,
-                                          &arg0, &prec)))
-            return NULL;
+            if (!(PyArg_ParseTupleAndKeywords(args, keywds, "O|OO", kwlist_c,
+                                              &arg0, &prec, &context)))
+                return NULL;
         }
 
         if (prec) {
@@ -892,4 +898,3 @@ GMPy_MPC_Dealloc(MPC_Object *self)
         PyObject_Free(self);
     }
 }
-

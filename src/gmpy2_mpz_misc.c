@@ -6,7 +6,7 @@
  *                                                                         *
  * Copyright 2000 - 2009 Alex Martelli                                     *
  *                                                                         *
- * Copyright 2008 - 2024 Case Van Horsen                                   *
+ * Copyright 2008 - 2025 Case Van Horsen                                   *
  *                                                                         *
  * This file is part of GMPY2.                                             *
  *                                                                         *
@@ -267,7 +267,7 @@ GMPy_MPZ_Method_Round(PyObject *self, PyObject *const *args,
     round_digits = -round_digits;
 
     if ((result = GMPy_MPZ_New(NULL))) {
-        if ((unsigned)round_digits >= mpz_sizeinbase(MPZ(self), 10)) {
+        if ((unsigned)round_digits > mpz_sizeinbase(MPZ(self), 10)) {
             mpz_set_ui(result->z, 0);
         }
         else {
@@ -1094,6 +1094,16 @@ GMPy_MPZ_Function_IsSquare(PyObject *self, PyObject *other)
         Py_RETURN_FALSE;
 }
 
+PyDoc_STRVAR(GMPy_doc_mpz_method_is_integer,
+"x.is_integer() -> bool\n\n"
+"Returns `True`.");
+
+static PyObject *
+GMPy_MPZ_Method_IsInteger(PyObject *self, PyObject *other)
+{
+    Py_RETURN_TRUE;
+}
+
 PyDoc_STRVAR(GMPy_doc_mpz_method_is_square,
 "x.is_square() -> bool\n\n"
 "Returns `True` if x is a perfect square, else return `False`.");
@@ -1869,8 +1879,8 @@ GMPy_MPZ_Method_To_Bytes(PyObject *self, PyObject *const *args,
     Py_ssize_t i, nkws = 0, size, gap, length = 1;
     PyObject *bytes, *arg;
     mpz_t tmp, *px = &MPZ(self);
-    char *buffer, sign, is_signed = 0, is_negative, is_big;
-    int argidx[2] = {-1, -1};
+    char *buffer;
+    int sign, is_signed = 0, is_negative, is_big, argidx[2] = {-1, -1};
     const char *byteorder = NULL, *kwname;
 
     if (nargs > 2) {
@@ -1975,7 +1985,12 @@ GMPy_MPZ_Method_To_Bytes(PyObject *self, PyObject *const *args,
     gap = length - size;
 
     if (gap < 0 || sign < 0 ||
-        (is_signed && length && mpz_tstbit(*px, 8*length - 1) == !is_negative))
+        (is_signed &&
+#if (PY_VERSION_HEX < 0x030D08F0 || (PY_VERSION_HEX >= 0x030E0000 \
+                                     && PY_VERSION_HEX < 0x030E00C3))
+         length &&
+#endif
+         mpz_tstbit(*px, 8*length - 1) == !is_negative))
     {
         OVERFLOW_ERROR("mpz too big to convert");
         return NULL;
@@ -1986,15 +2001,15 @@ GMPy_MPZ_Method_To_Bytes(PyObject *self, PyObject *const *args,
         return NULL;
     }
     buffer = PyBytes_AS_STRING(bytes);
-    memset(buffer, 0, length);
+    memset(buffer, is_negative ? 0xFF : 0, gap);
 
-    if (is_big) {
-        mpz_export(buffer + gap, NULL, 1, sizeof(char), 0, 0, *px);
+    if ((*px)->_mp_size) {
+        mpn_get_str((unsigned char *)(buffer + gap), 256,
+                    (*px)->_mp_d, (*px)->_mp_size);
     }
-    else {
-        mpz_export(buffer, NULL, -1, sizeof(char), 0, 0, *px);
+    if (!is_big && length) {
+        revstr(buffer, 0, length - 1);
     }
-
     if (is_negative) {
         mpz_clear(tmp);
     }
@@ -2023,8 +2038,8 @@ GMPy_MPZ_Method_From_Bytes(PyTypeObject *type, PyObject *const *args, Py_ssize_t
 {
     Py_ssize_t i, nkws = 0, length;
     PyObject *arg, *bytes;
-    char is_signed = 0, endian, *buffer;
-    int argidx[2] = {-1, -1};
+    char *buffer;
+    int is_signed = 0, endian, argidx[2] = {-1, -1};
     const char *byteorder = NULL, *kwname;
     mpz_t tmp;
     MPZ_Object *result;
@@ -2166,4 +2181,86 @@ GMPy_MP_Method_Conjugate(PyObject *self, PyObject *args)
 {
     Py_INCREF((PyObject*)self);
     return (PyObject*)self;
+}
+
+PyDoc_STRVAR(GMPy_doc_mpz_method_array,
+"x.__array__(dtype=None, copy=None)\n");
+
+static PyObject *
+GMPy_MPZ_Method_Array(PyObject *self, PyObject *const *args,
+                      Py_ssize_t nargs, PyObject *kwnames)
+{
+    Py_ssize_t i, nkws = 0;
+    int argidx[2] = {-1, -1};
+    const char* kwname;
+    PyObject *dtype = Py_None;
+
+    if (nargs > 2) {
+        TYPE_ERROR("__array__() takes at most 2 positional arguments");
+        return NULL;
+    }
+    if (nargs >= 1) {
+        argidx[0] = 0;
+    }
+    if (nargs == 2) {
+        argidx[1] = 1;
+    }
+
+    if (kwnames) {
+        nkws = PyTuple_GET_SIZE(kwnames);
+    }
+    if (nkws > 2) {
+        TYPE_ERROR("__array__() takes at most 2 keyword arguments");
+        return NULL;
+    }
+    for (i = 0; i < nkws; i++) {
+        kwname = PyUnicode_AsUTF8(PyTuple_GET_ITEM(kwnames, i));
+        if (strcmp(kwname, "dtype") == 0) {
+            if (nargs == 0) {
+                argidx[0] = (int)(nargs + i);
+            }
+            else {
+                TYPE_ERROR("argument for __array__() given by name ('dtype') and position (1)");
+                return NULL;
+            }
+        }
+        else if (strcmp(kwname, "copy") == 0) {
+            if (nargs <= 1) {
+                argidx[1] = (int)(nargs + i);
+            }
+            else {
+                TYPE_ERROR("argument for __array__() given by name ('copy') and position (2)");
+                return NULL;
+            }
+        }
+        else {
+            TYPE_ERROR("got an invalid keyword argument for __array__()");
+            return NULL;
+        }
+    }
+
+    if (argidx[0] >= 0) {
+        dtype = args[argidx[0]];
+    }
+
+    PyObject *mod = PyImport_ImportModule("numpy");
+
+    if (!mod) {
+        return NULL;
+    }
+
+    PyObject *tmp_long = GMPy_PyLong_From_MPZ((MPZ_Object *)self, NULL);
+
+    if (!tmp_long) {
+        Py_DECREF(mod);
+        return NULL;
+    }
+
+    PyObject *result = PyObject_CallMethod(mod, "array",
+                                           "OO", tmp_long, dtype);
+
+    Py_DECREF(mod);
+    Py_DECREF(tmp_long);
+
+    return result;
 }

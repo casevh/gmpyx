@@ -6,7 +6,7 @@
  *                                                                         *
  * Copyright 2000 - 2009 Alex Martelli                                     *
  *                                                                         *
- * Copyright 2008 - 2024 Case Van Horsen                                   *
+ * Copyright 2008 - 2025 Case Van Horsen                                   *
  *                                                                         *
  * This file is part of GMPY2.                                             *
  *                                                                         *
@@ -178,7 +178,8 @@ GMPy_RemoveIgnoredASCII(PyObject *s)
 static int
 mpz_set_PyStr(mpz_t z, PyObject *s, int base)
 {
-    char *cp, negative = 0;
+    char *cp;
+    int negative = 0;
     PyObject *ascii_str;
 
     ascii_str = GMPy_RemoveIgnoredASCII(s);

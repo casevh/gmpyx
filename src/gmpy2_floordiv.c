@@ -6,7 +6,7 @@
  *                                                                         *
  * Copyright 2000 - 2009 Alex Martelli                                     *
  *                                                                         *
- * Copyright 2008 - 2024 Case Van Horsen                                   *
+ * Copyright 2008 - 2025 Case Van Horsen                                   *
  *                                                                         *
  * This file is part of GMPY2.                                             *
  *                                                                         *
@@ -74,7 +74,12 @@ GMPy_Integer_FloorDivWithType(PyObject *x, int xtype, PyObject *y, int ytype,
                 }
             }
             else {
-                mpz_set_PyLong(result->z, y);
+                if (mpz_set_PyLong(result->z, y)) {
+                    /* LCOV_EXCL_START */
+                    Py_DECREF((PyObject*)result);
+                    return NULL;
+                    /* LCOV_EXCL_STOP */
+                }
                 GMPY_MAYBE_BEGIN_ALLOW_THREADS(context);
                 mpz_fdiv_q(result->z, MPZ(x), result->z);
                 GMPY_MAYBE_END_ALLOW_THREADS(context);
@@ -91,7 +96,12 @@ GMPy_Integer_FloorDivWithType(PyObject *x, int xtype, PyObject *y, int ytype,
         }
 
         if (IS_TYPE_PyInteger(xtype)) {
-            mpz_set_PyLong(result->z, x);
+            if (mpz_set_PyLong(result->z, x)) {
+                /* LCOV_EXCL_START */
+                Py_DECREF((PyObject*)result);
+                return NULL;
+                /* LCOV_EXCL_STOP */
+            }
             GMPY_MAYBE_BEGIN_ALLOW_THREADS(context);
             mpz_fdiv_q(result->z, result->z, MPZ(y));
             GMPY_MAYBE_END_ALLOW_THREADS(context);
@@ -310,16 +320,16 @@ GMPy_Number_FloorDiv(PyObject *x, PyObject *y, CTXT_Object *context)
     int ytype = GMPy_ObjectType(y);
 
     if (IS_TYPE_INTEGER(xtype) && IS_TYPE_INTEGER(ytype))
-        return GMPy_Integer_FloorDivWithType(x, xtype, y, ytype, NULL);
+        return GMPy_Integer_FloorDivWithType(x, xtype, y, ytype, context);
 
     if (IS_TYPE_RATIONAL(xtype) && IS_TYPE_RATIONAL(ytype))
-        return GMPy_Rational_FloorDivWithType(x, xtype, y, ytype, NULL);
+        return GMPy_Rational_FloorDivWithType(x, xtype, y, ytype, context);
 
     if (IS_TYPE_REAL(xtype) && IS_TYPE_REAL(ytype))
-        return GMPy_Real_FloorDivWithType(x, xtype, y, ytype, NULL);
+        return GMPy_Real_FloorDivWithType(x, xtype, y, ytype, context);
 
     if (IS_TYPE_COMPLEX(xtype) && IS_TYPE_COMPLEX(ytype))
-        return GMPy_Complex_FloorDivWithType(x, xtype, y, ytype, NULL);
+        return GMPy_Complex_FloorDivWithType(x, xtype, y, ytype, context);
 
     TYPE_ERROR("floor_div() argument type not supported");
     return NULL;

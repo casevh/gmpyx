@@ -1,8 +1,10 @@
 import math
 import numbers
 import pickle
+from concurrent.futures import ThreadPoolExecutor
 from fractions import Fraction
 
+import pytest
 from hypothesis import assume, example, given, settings
 from hypothesis.strategies import booleans, integers, sampled_from
 from pytest import mark, raises
@@ -440,12 +442,18 @@ def test_mpz_create():
     assert mpz('1 2') == mpz(12)
     assert mpz(' 1 2') == mpz(12)
 
+    raises(TypeError, lambda: mpz(s=1))
+    raises(TypeError, lambda: mpz(1, s=2))
 
+
+@settings(max_examples=10000)
 @given(integers())
 @example(0)
 @example(-3)
 def test_mpz_conversion_bulk(n):
-    assert int(mpz(n)) == n
+    m = mpz(n)
+    assert int(m) == n
+    assert str(m) == str(n)
 
 
 @settings(max_examples=1000)
@@ -500,6 +508,24 @@ def test_mpz_round():
 
     raises(TypeError, lambda: round(mpz(123456),'a'))
     raises(TypeError, lambda: round(mpz(123456),'a',4))
+
+    # issue 552
+    assert round(mpz(501), -3) == mpz(1000)
+
+
+@settings(max_examples=10000)
+@given(integers())
+@example(38732858750156021)
+@example(225188150488381457)
+def test_mpz_float_bulk(n):
+    m = mpz(n)
+    try:
+        fn = float(n)
+    except OverflowError:
+        with raises(OverflowError):
+            float(m)
+    else:
+        assert fn == float(m)
 
 
 def test_mpz_bool():
@@ -1361,8 +1387,10 @@ def test_mpz_rshift():
 
     assert a>>1 == mpz(61)
     assert int(a)>>mpz(1) == mpz(61)
+    assert a>>111111111111111111111 == mpz(0)
+    assert (-a)>>111111111111111111111 == mpz(-1)
 
-    raises(OverflowError, lambda: a>>-2)
+    raises(ValueError, lambda: a>>-2)
 
     assert a>>0 == mpz(123)
 
@@ -1404,7 +1432,7 @@ def test_mpz_ilshift_irshift():
         x >>= mpfr(2)
     with raises(TypeError):
         x <<= mpfr(2)
-    with raises(OverflowError):
+    with raises(ValueError):
         x >>= -1
     with raises(OverflowError):
         x <<= -5
@@ -1463,6 +1491,11 @@ def test_mpz_is_square():
     assert not gmpy2.is_square(10)
     assert mpz(16).is_square()
     assert not mpz(17).is_square()
+
+
+def test_mpz_is_integer():
+    assert mpz(0).is_integer()
+    assert mpz(123).is_integer()
 
 
 def test_mpz_is_divisible():
@@ -1758,3 +1791,34 @@ def test_issue_312():
     assert not is_prime(1 - 2**4423)
     assert all(not is_prime(-a) for a in range(8))
     assert next_prime(-8) == 2
+
+
+def test_mpz_array():
+    numpy = pytest.importorskip('numpy')
+    i = 5579686107214117131790972086716881
+    m = gmpy2.mpz(i)
+    assert numpy.longdouble(m) == numpy.longdouble(i)
+    assert m.__array__(dtype=numpy.longdouble) == numpy.longdouble(i)
+
+    raises(TypeError, lambda: m.__array__(1, 2, 3))
+    raises(TypeError, lambda: m.__array__(dtype=None, copy=None, spam=123))
+    raises(TypeError, lambda: m.__array__(int, dtype=None))
+    raises(TypeError, lambda: m.__array__(int, None, copy=None))
+    raises(TypeError, lambda: m.__array__(spam=123))
+
+
+def test_mpz_thread_safe():
+    def worker():
+        ctx = gmpy2.get_context()
+        a = mpz(-1)
+        b = abs(a) + 2
+        a = b - 2
+        assert str(a/b) == '0.33333333333333331'
+        del a
+        ctx.rational_division = True
+        a = b - 2
+        assert str(a/b) == '1/3'
+        del b
+    tpe = ThreadPoolExecutor(max_workers=20)
+    for _ in range(1000):
+        tpe.submit(worker)

@@ -1,4 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor
 from fractions import Fraction
+import cmath
 
 import pytest
 from hypothesis import example, given, settings
@@ -109,6 +111,14 @@ def test_mpc_creation():
 
     assert mpc('1_2+4_5j') == mpc('12.0+45.0j')
 
+    pytest.raises(TypeError, lambda: mpc(1, base=2))
+    pytest.raises(TypeError, lambda: mpc(1, s=2))
+    pytest.raises(TypeError, lambda: mpc("1", s=2))
+    pytest.raises(TypeError, lambda: mpc("1", imag=2))
+    pytest.raises(TypeError, lambda: mpc(1j, imag=2))
+    pytest.raises(TypeError, lambda: mpc(1j, base=2))
+    pytest.raises(TypeError, lambda: mpc(1j, s=2))
+
 
 def test_mpc_random():
     assert (mpc_random(random_state(42))
@@ -205,6 +215,12 @@ def test_mpc_format():
     assert '{:e}'.format(c) in ('3.3333333333333331e-01+5e+00j', '3.3333333333333331e-01+5.0000000000000000e+00j')
     assert '{:M}'.format(c1) == '(-1.000000 -2.000000)'
 
+    # issue 503
+    c = mpc(2.675)
+    assert f'{c:.2f}' == '2.67+0.00j'
+    gmpy2.set_context(gmpy2.context(round=gmpy2.RoundUp))
+    assert f'{c:.2f}' == '2.68+0.00j'
+
 
 def test_mpc_repr():
     c = mpc('1.2999999999999999999999999999994-4.7000000000000000000000000000000025j',(100,110))
@@ -285,6 +301,12 @@ def test_mpc_add():
 
     assert is_nan(x.real) and x.imag == 2.0
 
+    a = mpc('1-0j')
+    b = mpfr('1')
+    c = mpc('2-0j')
+
+    assert repr(a+b) == repr(b + a) == repr(c)
+
 
 def test_mpc_sub():
     pytest.raises(TypeError, lambda: mpc(1,2) - 'a')
@@ -322,6 +344,12 @@ def test_mpc_sub():
 
     assert is_nan(x.real) and x.imag == 2.0
 
+    a = mpc('1+0j')
+    b = mpfr('1')
+    c = mpc('0-0j')
+
+    assert repr(b - a) == repr(c)
+
 
 def test_mpc_mul():
     pytest.raises(TypeError, lambda: mpc(1,2) * 'a')
@@ -353,6 +381,12 @@ def test_mpc_mul():
     for x in [aj * float('nan'), mpc(0,0) * float('inf'),
               mpc(0,0) * float('-inf'), mpc(0,0) * float('nan')]:
         assert all(is_nan(_) for _ in [x.real, x.imag])
+
+    a = mpc('inf-1j')
+    b = mpfr('inf')
+    c = mpc('inf-infj')
+
+    assert a*b == b*a == c
 
 
 def test_mpc_divmod():
@@ -398,6 +432,12 @@ def test_mpc_div():
     assert aj / float('-inf') == mpc('-0.0-0.0j')
     assert float('inf') / aj == mpc('inf-infj')
     assert float('-inf') / aj == mpc('-inf+infj')
+
+    a = mpc('1-infj')
+    b = 1
+
+    assert a/b == a
+    assert repr(b/a) == repr(mpc(0))
 
 
 def test_mpc_mod():
@@ -457,3 +497,17 @@ def test_mpc_exc():
     ctx.trap_invalid = True
 
     pytest.raises(gmpy2.InvalidOperationError, lambda: mpc(mpfr('nan')))
+
+
+def test_issue_520():
+    z = gmpy2.mpc(-0.0, 2)
+    res = gmpy2.asinh(z)
+    assert cmath.isclose(gmpy2.log(z + gmpy2.sqrt(1 + z*z)), res)
+
+
+def test_mpc_thread_safe():
+    def worker():
+        test_mpc_creation()
+    tpe = ThreadPoolExecutor(max_workers=20)
+    for _ in range(1000):
+        tpe.submit(worker)

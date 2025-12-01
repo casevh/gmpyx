@@ -1,6 +1,7 @@
 import math
 import numbers
 import pickle
+import platform
 import sys
 from decimal import Decimal
 from fractions import Fraction
@@ -15,9 +16,11 @@ from gmpy2 import (cmp, cmp_abs, from_binary, is_nan, mpc, mpfr, mpq, mpz,
                    to_binary, xmpz)
 
 
-def test_mpz_constructor():
+def test_mpq_constructor():
     assert mpq('1/1') == mpq(1,1)
     assert mpq('1_/_1') == mpq(1,1)
+
+    pytest.raises(TypeError, lambda: mpq('1', s=1))
 
 
 def test_mpq_as_integer_ratio():
@@ -36,6 +39,26 @@ def test_mpq_pickling():
 
 def test_mpq_from_float():
     assert mpq.from_float(3.2) == mpq(3602879701896397, 1125899906842624)
+
+
+def test_mpq_float():
+    assert float(mpq(9, 5)) == 1.8
+
+
+@pytest.mark.skipif(platform.machine() != "x86_64",
+                    reason="XXX: fails in i686 manylinux images")
+@settings(max_examples=10000)
+@given(fractions())
+@example(Fraction(12143, 31517))
+def test_mpq_float_bulk(x):
+    q = mpq(x)
+    try:
+        fx = float(x)
+    except OverflowError:
+        with pytest.raises(OverflowError):
+            float(q)
+    else:
+        assert fx == float(q)
 
 
 def test_mpq_from_Decimal():
@@ -544,6 +567,12 @@ def test_mpq_attributes():
     assert gmpy2.denom(pyq) == mpz(5)
 
 
+def test_mpq_is_integer():
+    assert mpq(0).is_integer()
+    assert mpq(123).is_integer()
+    assert not mpq(1, 2).is_integer()
+
+
 def test_mpq_conjugate():
     a = mpq(3, 11)
 
@@ -613,3 +642,29 @@ def test_issue_334():
     assert x == mpq(3,2)
     assert y == mpq(3,4)
     assert id(x) is not id(y)
+
+
+def test_mpq_limit_denominator():
+    x = mpq(1, 2)
+
+    pytest.raises(TypeError, lambda: x.limit_denominator(1, 2))
+    pytest.raises(TypeError, lambda: x.limit_denominator(x=1, y=2))
+    pytest.raises(TypeError, lambda: x.limit_denominator(x=1))
+    pytest.raises(TypeError, lambda: x.limit_denominator(1, max_denominator=2))
+    pytest.raises(TypeError, lambda: x.limit_denominator(1.1))
+    pytest.raises(ValueError, lambda: x.limit_denominator(-10))
+
+    x = mpq('3.141592653589793')
+
+    assert x.limit_denominator(10) == mpq(22, 7)
+    assert x.limit_denominator(100) == mpq(311, 99)
+    assert mpq(4321, 8765).limit_denominator(10000) == mpq(4321, 8765)
+
+    x = mpq('3.1415926535897932')
+    assert x.limit_denominator(10000) == mpq(355, 113)
+    assert -x.limit_denominator(10000) == mpq(-355, 113)
+    assert x.limit_denominator(113) == mpq(355, 113)
+    assert x.limit_denominator(112) == mpq(333, 106)
+    assert mpq(201, 200).limit_denominator(100) == mpq(1)
+    assert mpq(201, 200).limit_denominator(101) == mpq(102, 101)
+    assert mpq(0).limit_denominator(10000) == mpq(0)

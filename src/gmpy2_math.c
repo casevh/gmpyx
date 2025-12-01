@@ -6,7 +6,7 @@
  *                                                                         *
  * Copyright 2000 - 2009 Alex Martelli                                     *
  *                                                                         *
- * Copyright 2008 - 2024 Case Van Horsen                                   *
+ * Copyright 2008 - 2025 Case Van Horsen                                   *
  *                                                                         *
  * This file is part of GMPY2.                                             *
  *                                                                         *
@@ -1574,7 +1574,7 @@ PyDoc_STRVAR(GMPy_doc_context_floor,
 "context.floor(x, /) -> mpfr\n\n"
 "Return an `mpfr` that is the largest integer <= x.");
 
-GMPY_MPFR_UNIOP_NOROUNDWT(Floor, floor);
+GMPY_MPFR_UNIOP_NOROUNDWT(Floor, floor)
 
 PyDoc_STRVAR(GMPy_doc_mpfr_trunc_method,
 "x.__trunc__() -> mpfr\n\n"
@@ -1750,7 +1750,7 @@ GMPy_RealWithType_RemQuo(PyObject *x, int xtype, PyObject *y, int ytype, CTXT_Ob
     return result;
 }
 
-GMPY_MPFR_BINOP_TEMPLATEWT(RemQuo, remquo);
+GMPY_MPFR_BINOP_TEMPLATEWT(RemQuo, remquo)
 
 PyDoc_STRVAR(GMPy_doc_function_frexp,
 "frexp(x, /) -> tuple[int, mpfr]\n\n"

@@ -6,7 +6,7 @@
  *                                                                         *
  * Copyright 2000 - 2009 Alex Martelli                                     *
  *                                                                         *
- * Copyright 2008 - 2024 Case Van Horsen                                   *
+ * Copyright 2008 - 2025 Case Van Horsen                                   *
  *                                                                         *
  * This file is part of GMPY2.                                             *
  *                                                                         *
@@ -59,7 +59,12 @@ GMPy_Integer_MulWithType(PyObject *x, int xtype, PyObject *y, int ytype,
                  mpz_mul_si(result->z, MPZ(x), temp);
             }
             else {
-                mpz_set_PyLong(result->z, y);
+                if (mpz_set_PyLong(result->z, y)) {
+                    /* LCOV_EXCL_START */
+                    Py_DECREF((PyObject*)result);
+                    return NULL;
+                    /* LCOV_EXCL_STOP */
+                }
                 GMPY_MAYBE_BEGIN_ALLOW_THREADS(context);
                 mpz_mul(result->z, MPZ(x), result->z);
                 GMPY_MAYBE_END_ALLOW_THREADS(context);
@@ -77,7 +82,12 @@ GMPy_Integer_MulWithType(PyObject *x, int xtype, PyObject *y, int ytype,
                 mpz_mul_si(result->z, MPZ(y), temp);
             }
             else {
-                mpz_set_PyLong(result->z, x);
+                if (mpz_set_PyLong(result->z, x)) {
+                    /* LCOV_EXCL_START */
+                    Py_DECREF((PyObject*)result);
+                    return NULL;
+                    /* LCOV_EXCL_STOP */
+                }
                 GMPY_MAYBE_BEGIN_ALLOW_THREADS(context);
                 mpz_mul(result->z, result->z, MPZ(y));
                 GMPY_MAYBE_END_ALLOW_THREADS(context);
@@ -226,6 +236,46 @@ GMPy_Complex_MulWithType(PyObject *x, int xtype, PyObject *y, int ytype,
 
     if (IS_TYPE_MPC(xtype) && IS_TYPE_MPC(ytype)) {
         result->rc = mpc_mul(result->c, MPC(x), MPC(y), GET_MPC_ROUND(context));
+        _GMPy_MPC_Cleanup(&result, context);
+        return (PyObject*)result;
+    }
+
+    if (IS_TYPE_COMPLEX(xtype) && IS_TYPE_REAL(ytype)) {
+        MPC_Object *tempx = NULL;
+        MPFR_Object *tempy = NULL;
+
+        if (!(tempx = GMPy_MPC_From_ComplexWithType(x, xtype, 1, 1, context)) ||
+            !(tempy = GMPy_MPFR_From_RealWithType(y, ytype, 1, context))) {
+            /* LCOV_EXCL_START */
+            Py_XDECREF((PyObject*)tempx);
+            Py_XDECREF((PyObject*)tempy);
+            Py_DECREF((PyObject*)result);
+            return NULL;
+            /* LCOV_EXCL_STOP */
+        }
+        result->rc = mpc_mul_fr(result->c, tempx->c, MPFR(tempy), GET_MPC_ROUND(context));
+        Py_DECREF((PyObject*)tempx);
+        Py_DECREF((PyObject*)tempy);
+        _GMPy_MPC_Cleanup(&result, context);
+        return (PyObject*)result;
+    }
+
+    if (IS_TYPE_COMPLEX(ytype) && IS_TYPE_REAL(xtype)) {
+        MPC_Object *tempy = NULL;
+        MPFR_Object *tempx = NULL;
+
+        if (!(tempy = GMPy_MPC_From_ComplexWithType(y, ytype, 1, 1, context)) ||
+            !(tempx = GMPy_MPFR_From_RealWithType(x, xtype, 1, context))) {
+            /* LCOV_EXCL_START */
+            Py_XDECREF((PyObject*)tempx);
+            Py_XDECREF((PyObject*)tempy);
+            Py_DECREF((PyObject*)result);
+            return NULL;
+            /* LCOV_EXCL_STOP */
+        }
+        result->rc = mpc_mul_fr(result->c, tempy->c, MPFR(tempx), GET_MPC_ROUND(context));
+        Py_DECREF((PyObject*)tempx);
+        Py_DECREF((PyObject*)tempy);
         _GMPy_MPC_Cleanup(&result, context);
         return (PyObject*)result;
     }

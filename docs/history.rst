@@ -3,8 +3,35 @@ Release Notes
 
 .. currentmodule:: gmpy2
 
+Changes in gmpy2 2.3.0
+----------------------
+
+* Improved support for mixed `mpfr` and `mpc` arithmetic.  (skirpichev)
+* Preliminary support for free-threaded builds.  (skirpichev)
+* Fix behavior and memory leaks for contexts.  (skirpichev)
+* Fix memory leaks for `mpfr` caching.  (skirpichev)
+* Fix rounding error in float(mpz).  (skirpichev)
+* Add missing methods to `mpz` and `mpq`.  (skirpichev)
+* Fix round(mpz, ndigits) if ndigits is negative.  (skirpichev)
+
+Changes in gmpy2 2.2.2
+----------------------
+
+* Fix memory leak for mpfr/mpc cache, see issue 511.
+* Fix memory leak in GMPy_CTXT_Exit(), see issue 515.
+* Restore 'm' in library list, see issue 538.
+* Adjust to_bytes() behavior to match CPython.
+* Provide wheels for CPython v3.14.
+* Provide wheels for Linux and Windows ARM64.
+
+Changes in gmpy2 2.2.1
+----------------------
+
+* Fix internal use of char when int should be used. (jamesjer)
+* Add :meth:`xmpz.bit_count`. (skirpichev)
+
 Changes in gmpy2 2.2.0
-------------------------
+----------------------
 
 * Remove support for versions of Python < 3.7.  (skirpichev)
 * Support more modern build tools.  (skirpichev)
@@ -190,7 +217,7 @@ Changes in gmpy2 2.1.0a1
 * Context methods have been added for MPFR/MPC related functions.
 * A new context option (`~context.rational_division`) has been added that
   changes the behavior of integer division involving `mpz` instances to return
-  a rational result instead of a floating point result.
+  a rational result instead of a floating-point result.
 * gmpy2 types are now registered in the numeric tower of the
   :mod:`numbers` module.
 * In previous versions of gmpy2, ``mpz()`` was a factory function that

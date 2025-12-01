@@ -6,7 +6,7 @@
  *                                                                         *
  * Copyright 2000 - 2009 Alex Martelli                                     *
  *                                                                         *
- * Copyright 2008 - 2024 Case Van Horsen                                   *
+ * Copyright 2008 - 2025 Case Van Horsen                                   *
  *                                                                         *
  * This file is part of GMPY2.                                             *
  *                                                                         *
@@ -33,20 +33,20 @@ GMPy_RandomState_New(void)
         gmp_randinit_default(result->state);
     }
     return result;
-};
+}
 
 static void
 GMPy_RandomState_Dealloc(RandomState_Object *self)
 {
     gmp_randclear(self->state);
     PyObject_Free(self);
-};
+}
 
 static PyObject *
 GMPy_RandomState_Repr(RandomState_Object *self)
 {
     return PyUnicode_FromString("<gmpy2.RandomState>");
-};
+}
 
 PyDoc_STRVAR(GMPy_doc_random_state_factory,
 "random_state(seed=0, /) -> object\n\n"
